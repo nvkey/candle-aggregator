@@ -33,69 +33,76 @@ class Candle:
 
 
 @dataclass(slots=True)
-class VolumeCandle:
-    ts_open: float
-    ts_close: float
-    volume: float
-
-
-@dataclass(slots=True)
-class TemporaryCandle(VolumeCandle):
+class TemporaryCandle(Candle):
     ...
 
 
 @dataclass(slots=True)
 class CandleAggregator:
-    candles: Sequence[Candle | VolumeCandle]
+    candles: Sequence[Candle]
     volume: float
 
     @classmethod
-    def split_candle(cls, candle: Candle | VolumeCandle, volume: float) -> Sequence[VolumeCandle | TemporaryCandle]:
+    def split_candle(cls, candle: Candle, volume: float) -> Sequence[Candle | TemporaryCandle]:
         candle_count, remaind = division(candle.volume, volume)
-        volume_candle = VolumeCandle(ts_open=0, ts_close=0, volume=volume)
-        lst = [volume_candle] * candle_count
+        candle_duration = candle.ts_close - candle.ts_open
+        percent_duration = candle_duration / candle.volume
+
+        candle.volume = volume
+        candle.ts_close = round(candle.ts_open + percent_duration * volume, 2)
+
+        lst = [candle] * candle_count
         if remaind:
             temp_candle = TemporaryCandle(
-                ts_open=volume_candle.ts_open,
-                ts_close=volume_candle.ts_close,
-                volume=volume_candle.volume,
+                ts_open=candle.ts_close,
+                ts_close=round(candle.ts_close + percent_duration * remaind, 2),
+                open=candle.open,
+                close=candle.close,
+                low=candle.low,
+                high=candle.high,
+                volume=remaind,
             )
-            temp_candle.volume = remaind
             lst += [temp_candle]
+
         return lst
 
     @classmethod
     def combine_candles(
-        cls, candles: Sequence[VolumeCandle | TemporaryCandle], volume: float
-    ) -> Sequence[VolumeCandle | TemporaryCandle]:
+        cls, candles: Sequence[Candle | TemporaryCandle], volume: float
+    ) -> Sequence[Candle | TemporaryCandle]:
         combine_volume = sum(candle.volume for candle in candles)
         ts_open = candles[0].ts_open
         ts_close = candles[-1].ts_close
+        open = candles[0].open
+        close = candles[-1].close
+        low = min(candle.low for candle in candles)
+        high = max(candle.high for candle in candles)
+
         if combine_volume == volume:
-            volume_candle = VolumeCandle(
-                ts_open=ts_open,
-                ts_close=ts_close,
-                volume=combine_volume,
+            volume_candle = Candle(
+                ts_open=ts_open, ts_close=ts_close, open=open, close=close, low=low, high=high, volume=combine_volume
             )
             return [volume_candle]
 
         if combine_volume < volume:
             temp_candle = TemporaryCandle(
-                ts_open=ts_open,
-                ts_close=ts_close,
-                volume=combine_volume,
+                ts_open=ts_open, ts_close=ts_close, open=open, close=close, low=low, high=high, volume=combine_volume
             )
             return [temp_candle]
 
         if combine_volume > volume:
-            candle = VolumeCandle(
+            candle = Candle(
                 ts_open=ts_open,
                 ts_close=ts_close,
+                open=open,
+                close=close,
+                low=low,
+                high=high,
                 volume=combine_volume,
             )
             return cls.split_candle(candle, volume)
 
-        return [VolumeCandle(ts_open=ts_open, ts_close=ts_close, volume=combine_volume)]
+        return candles
 
     @staticmethod
     def check_last_candle_is_not_temp(candels: Sequence[Any]) -> bool:
@@ -104,15 +111,13 @@ class CandleAggregator:
         return True
 
     @property
-    def volume_candles_lst(self) -> Sequence[VolumeCandle | TemporaryCandle]:
-        volume_candles_lst: list[VolumeCandle | TemporaryCandle] = []
-        temp_candles_lst: list[VolumeCandle | TemporaryCandle] = []
+    def volume_candles(self) -> Sequence[Candle | TemporaryCandle]:
+        volume_candles_lst: list[Candle | TemporaryCandle] = []
+        temp_candles_lst: list[Candle | TemporaryCandle] = []
 
         for candle in self.candles:
             if len(temp_candles_lst) > 0:
-                temp_candles_lst += [
-                    VolumeCandle(ts_open=candle.ts_open, ts_close=candle.ts_close, volume=candle.volume)
-                ]
+                temp_candles_lst += [candle]
                 combine_candles_lst = self.combine_candles(temp_candles_lst, self.volume)
                 pop_last_if_exists(volume_candles_lst)
                 volume_candles_lst += combine_candles_lst
@@ -121,9 +126,7 @@ class CandleAggregator:
                 candle = volume_candles_lst[-1]
 
             if candle.volume == self.volume:
-                volume_candles_lst += [
-                    VolumeCandle(ts_close=candle.ts_close, ts_open=candle.ts_open, volume=candle.volume)
-                ]
+                volume_candles_lst += [candle]
 
             if candle.volume > self.volume:
                 split_candles_lst = self.split_candle(candle, self.volume)
@@ -133,17 +136,16 @@ class CandleAggregator:
                 temp_candles_lst += [volume_candles_lst[-1]]
 
             if candle.volume < self.volume:
-                temp_candles_lst = [
-                    VolumeCandle(ts_open=candle.ts_open, ts_close=candle.ts_close, volume=candle.volume)
-                ]
+                temp_candles_lst = [candle]
 
         return volume_candles_lst
 
 
-def agg_volume_candles(candles: Sequence[Candle], volume: float) -> Sequence[VolumeCandle | TemporaryCandle]:
-    return CandleAggregator(candles, volume).volume_candles_lst
+def agg_volume_candles(candles: Sequence[Candle], volume: float) -> Sequence[Candle | TemporaryCandle]:
+    return CandleAggregator(candles, volume).volume_candles
 
 
+print("test_candles_1")
 test_candles_1 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 100),
 ]
@@ -153,6 +155,8 @@ assert result[-1].volume == 100
 assert not isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_2")
 test_candles_2 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 150),
 ]
@@ -162,6 +166,8 @@ assert result[-1].volume == 50
 assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_3")
 test_candles_3 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 300),
 ]
@@ -172,6 +178,7 @@ assert not isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
 
+print("test_candles_4")
 test_candles_4 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 333),
 ]
@@ -182,6 +189,7 @@ assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
 
+print("test_candles_5")
 test_candles_5 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 200),
     Candle(1100, 1200, 1450, 1350, 1250, 1460, 650),
@@ -192,6 +200,8 @@ assert result[-1].volume == 50
 assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_6")
 test_candles_6 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 200),
     Candle(1100, 1200, 1450, 1350, 1250, 1460, 650),
@@ -206,6 +216,8 @@ assert result[-1].volume == 50
 assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_7")
 test_candles_7 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 10),
     Candle(1100, 1200, 1450, 1350, 1250, 1460, 20),
@@ -220,6 +232,8 @@ assert result[-1].volume == 70
 assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_8")
 test_candles_8 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 10),
     Candle(1100, 1200, 1450, 1350, 1250, 1460, 20),
@@ -234,6 +248,8 @@ assert result[-1].volume == 100
 assert not isinstance(result[-1], TemporaryCandle)
 print_result(result)
 
+
+print("test_candles_9")
 test_candles_9 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 10),
     Candle(1100, 1200, 1450, 1500, 1400, 1500, 10),

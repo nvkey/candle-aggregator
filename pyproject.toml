@@ -10,8 +10,45 @@ readme = "README.md"
 python = "^3.11"
 mypy = "^1.8.0"
 pytest = "^7.4.4"
+pandas = "^2.1.4"
+mplfinance = "^0.12.10b0"
+flake8 = "^7.0.0"
+flake8-pyproject = "^1.2.3"
+black = "^23.12.1"
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.flake8]
+max-line-length = 160
+line-quotes = "\""
+ignore = [
+    "B010",  # Do not call setattr(x, 'attr', val), instead use normal property access: x.attr = val
+    "DJ01",  # Avoid using null=True on string-based fields such as CharField and TextField
+    "DJ07",  # Allow __all__ in fields for ModelForm
+    "DJ12",  # Field ordering
+    "E501",  # Line too long
+    "E265",  # Block comments should have one space before the pound sign (#) and the comment itself
+    "F811",  # Redefinition of unused name from line n
+    "FS003",  # f-string missing prefix
+    "PIE783",  # Warn about Celery task definitions that don't have explicit names
+    "PIE785",  # Celery tasks can bunch up if they don't have expirations
+    "PIE801",  # Return boolean expressions directly instead of returning True and False
+    "PT001",  # Use @pytest.fixture() over @pytest.fixture
+    "SIM102",  # Use a single if-statement instead of nested if-statements
+    "SIM113",  # Use enumerate instead of manually incrementing a counter
+    "VNE003",  # Variable names that shadow builtins are not allowed
+    "W503",  # https://www.flake8rules.com/rules/W503.html
+    "E203", # whitespace before ':', disabled for black purposes https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html#slices
+]
+exclude = [
+    ".venv",
+    ".git",
+    "migrations",
+    "__pycache__",
+    "botRedmine",
+    "redmine",
+    "storage",
+]
