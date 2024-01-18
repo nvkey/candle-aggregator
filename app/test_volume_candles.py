@@ -2,7 +2,6 @@ import pytest
 from candles_aggregator import Candle, CandleAggregator, TemporaryCandle
 
 
-# @pytest.mark.skip()
 @pytest.mark.parametrize(
     ("test_candles, volume, expected_len, expected_volume, expected_bool"),
     [
@@ -36,7 +35,6 @@ def test_split_candle(test_candles, volume, expected_len, expected_volume, expec
     assert isinstance(result[-1], TemporaryCandle) == expected_bool
 
 
-# @pytest.mark.skip()
 @pytest.mark.parametrize(
     ("test_candles, volume, expected_len, expected_volume, expected_bool"),
     [

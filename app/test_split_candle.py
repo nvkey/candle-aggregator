@@ -1,17 +1,7 @@
 import pytest
 from candles_aggregator import Candle, CandleAggregator, TemporaryCandle
 
-# class Candle:
-#     ts_open: float
-#     ts_close: float
-#     open: float
-#     close: float
-#     low: float
-#     high: float
-#     volume: float
 
-
-# @pytest.mark.skip()
 @pytest.mark.parametrize(
     ("test_candles, volume, expected_len, expected_volume, expected_bool, excepted_candles"),
     [

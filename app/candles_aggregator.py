@@ -184,9 +184,6 @@ def agg_volume_candles(candles: Sequence[Candle], volume: float) -> Sequence[Can
     return CandleAggregator(candles, volume).volume_candles
 
 
-
-
-
 print("test_candles_1")
 test_candles_1 = [
     Candle(1000, 1100, 1500, 1450, 1400, 1500, 100),
@@ -302,5 +299,31 @@ test_candles_9 = [
 result = agg_volume_candles(test_candles_9, 19)
 assert len(result) == 3
 assert result[-1].volume == 12
+assert isinstance(result[-1], TemporaryCandle)
+print_result(result)
+
+
+print("test_candles_add_1")
+test_candles_add_1 = [
+    Candle(1000, 1100, 1500, 1450, 1400, 1500, 99),
+    Candle(1100, 1200, 1450, 1350, 1250, 1460, 99),
+    Candle(1200, 1300, 1450, 1350, 1250, 1460, 2),
+]
+result = agg_volume_candles(test_candles_add_1, 100)
+assert len(result) == 2
+assert result[-1].volume == 100
+assert not isinstance(result[-1], TemporaryCandle)
+print_result(result)
+
+print("test_candles_add_2")
+test_candles_add_2 = [
+    Candle(1000, 1100, 1500, 1450, 1400, 1500, 100),
+    Candle(1100, 1200, 1450, 1350, 1250, 1460, 150),
+    Candle(1200, 1300, 1350, 1400, 1330, 1410, 100),
+]
+
+result = agg_volume_candles(test_candles_add_2, 100)
+assert len(result) == 4
+assert result[-1].volume == 50
 assert isinstance(result[-1], TemporaryCandle)
 print_result(result)
